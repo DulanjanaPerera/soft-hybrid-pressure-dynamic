@@ -1,5 +1,8 @@
 function c = pressure2config(p, r, K, A)
 % Compute the configuration parameters from the pressure.
+% 
+%  c = [theta; phi]
+% 
 % Inputs:
 %   p  : Pressures of 2nd and 3rd PMAs [1x3] (Pa)
 %   r  : radial offset of the PMA from the centerline [constant] (m)
@@ -7,7 +10,7 @@ function c = pressure2config(p, r, K, A)
 %   A  : PMA effective area [consatant] (m^2)
 % 
 % Output:
-%   c  : Inertia matrix [2x1]
+%   c  : configuration vector (theta, phi) [2x1]
 
 
 arguments (Input)
