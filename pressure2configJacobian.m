@@ -7,7 +7,7 @@ function J = pressure2configJacobian(p, r, K, A)
 %   A  : PMA effective area [consatant] (m^2)
 % 
 % Output:
-%   c  : Inertia matrix [2x1]
+%   J  : Jacobian matrix of the pressure [2x1]
 
 
 arguments (Input)
