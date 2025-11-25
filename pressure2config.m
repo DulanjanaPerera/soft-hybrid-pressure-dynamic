@@ -26,6 +26,7 @@ end
 
 c = [atan2(-A * r * sqrt(0.3e1) * (p(2) - p(3)) / 0.2e1, 0.3e1 / 0.2e1 * A * r * (p(2) + p(3))) sqrt(0.3e1) * A * r * sqrt(p(2) ^ 2 + p(2) * p(3) + p(3) ^ 2) / K];
 
-c = reshape(c,[2,1]);  
+c = reshape(c,[2,1]);
+c(2) = wrapToPi(c(2));
 
 end
