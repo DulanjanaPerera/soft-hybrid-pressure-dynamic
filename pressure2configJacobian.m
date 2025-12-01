@@ -18,7 +18,7 @@ arguments (Input)
 end
 
 arguments (Output)
-    J (3,2) double
+    J (2,2) double
 end
 
 
