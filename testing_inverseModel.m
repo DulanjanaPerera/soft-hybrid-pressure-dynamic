@@ -38,7 +38,7 @@ for i=1:(length(phi))
         J_inv = pinv(J);
         delta_p = J \ ([theta(i+1); phi(i+1)]-[dir(i); bend(i)]);
         p = p_mat(:, i) + [-(delta_p(1) + delta_p(2)); delta_p(1); delta_p(2)];
-        % p = PositivePressures(p);
+        p = PositivePressures(p);
         p_mat(:, i+1) = p; 
     
         % forward model
@@ -64,7 +64,7 @@ plot((rad2deg(theta)),'--')
 hold off
 grid on
 axis tight
-legend theta forward 'theta desired'
+legend 'theta forward' 'theta desired'
 
 figure(3)
 plot((rad2deg(bend)), '*')
@@ -74,7 +74,7 @@ plot((rad2deg(phi)), '--')
 hold off
 grid on
 axis tight
-legend phi forward 'phi desired'
+legend 'phi forward' 'phi desired'
 
 figure(4)
 plot(wrapTo360(rad2deg(wrapTo2Pi(abs(dir - theta)))))
