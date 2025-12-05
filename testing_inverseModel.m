@@ -1,7 +1,4 @@
 % Testing the forward and inverse pressure models
-% 
-% 
-% 
 
 clear
 
@@ -11,8 +8,10 @@ K = 0.0155;
 L = 0.2778;
 
 p=[0.0001;0.01;0.01];
-phi = linspace(0.0001, pi/3, 500);
-theta = linspace(0, 0, 500);
+phi = linspace(0.1, 0.1, 500);
+t = linspace(0,1,500);
+theta = wrapToPi(pi-pi*sawtooth(2*pi*t));
+% theta = linspace(0, 0, 500);
 bend = zeros(size(phi));
 dir = zeros(size(phi));
 p_mat = zeros(3,length(phi));
