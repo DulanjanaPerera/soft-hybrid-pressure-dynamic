@@ -12,8 +12,6 @@ phi = linspace(0.1, 0.1, 500);
 t = linspace(0,1,500);
 theta = wrapToPi(pi-pi*sawtooth(2*pi*t));
 % theta = linspace(0, 0, 500);
-bend = zeros(size(phi));
-dir = zeros(size(phi));
 p_mat = zeros(3,length(phi));
 p_mat(:,1) = p;
 
@@ -28,21 +26,12 @@ frw(:,1) = [theta(1); phi(1)];
 
 for i=1:(length(phi))
     
-    temp_c = pressure2config(p, r, K, A);
-    dir(i) = temp_c(1);
-    bend(i) = wrapToPi(temp_c(2)); 
+    [p_est, error_c] = config2pressure(theta(i), phi(i), r, K, A);
+    p_mat(:, i) = p_est;
 
-    if (i ~= length(phi))
-        J = pressure2configJacobian(p, A, r, K);
-        J_inv = pinv(J);
-        delta_p = J \ ([theta(i+1); phi(i+1)]-[dir(i); bend(i)]);
-        p = p_mat(:, i) + [-(delta_p(1) + delta_p(2)); delta_p(1); delta_p(2)];
-        p = PositivePressures(p);
-        p_mat(:, i+1) = p; 
-    
-        % forward model
-        frw(:,i+1) = wrapToPi(frw(:,i) + J*(p_mat(2:3, i+1) - p_mat(2:3, i)));
-    end
+    % forward model
+    frw(:,i) = pressure2config(p_est, r, K, A);
+
 end
 
 figure(1);
@@ -56,7 +45,7 @@ axis tight
 legend p1 p2 p3
 
 figure(2)
-plot((rad2deg(dir)), '*')
+plot((rad2deg(frw(1,:))), '*')
 hold on
 % plot(rad2deg(frw(1,:)), '+')
 plot((rad2deg(theta)),'--')
@@ -66,7 +55,7 @@ axis tight
 legend 'theta forward' 'theta desired'
 
 figure(3)
-plot((rad2deg(bend)), '*')
+plot((rad2deg(frw(2,:))), '*')
 hold on
 % plot(rad2deg(frw(2,:)), '+')
 plot((rad2deg(phi)), '--')
@@ -76,7 +65,7 @@ axis tight
 legend 'phi forward' 'phi desired'
 
 figure(4)
-plot(wrapTo360(rad2deg(wrapTo2Pi(abs(dir - theta)))))
+plot(wrapTo360(rad2deg(wrapTo2Pi(abs(frw(1,:) - theta)))))
 hold off
 grid on
 axis tight
