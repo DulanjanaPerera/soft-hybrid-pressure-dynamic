@@ -1,4 +1,4 @@
-function p_out = config2pressure(theta, phi, r, K, A)
+function [p_out, error_c] = config2pressure(theta, phi, r, K, A)
 % The optimization to obtain minimum energy solutions of pressure and
 % positive pressure. The function pressure2config.m file compute the
 % configuration variable for given pressures.
@@ -24,7 +24,8 @@ function p_out = config2pressure(theta, phi, r, K, A)
     end
     
     arguments (Output)
-        p_out (2,1) double
+        p_out (3,1) double
+        error_c (2,1) double
     end
 
     % initial values for the optimization
@@ -42,7 +43,9 @@ function p_out = config2pressure(theta, phi, r, K, A)
     
     % Ensure the output pressure vector is positive
     p_est = max(p_est, 0);
-    p_out = [-(p_est(1)+p_est(2)); p_est(1); p_est(2)];
+    p_out = [-(p_est(2)+p_est(3)); p_est(2); p_est(3)];
+
+    error_c = [theta; phi] - pressure2config(p_out, r, K, A);
 end
 
 function c = cost(p, theta, phi, r, K, A)
@@ -53,6 +56,6 @@ function c = cost(p, theta, phi, r, K, A)
     end
 
     config = pressure2config(p, r, K, A);
-    c = norm(config - [theta; phi]) + 0.0001*norm(p); % adds the regularization of pressure
+    c = norm(config - [theta; phi]) + 0.001*norm(p); % adds the regularization of pressure
 
 end
