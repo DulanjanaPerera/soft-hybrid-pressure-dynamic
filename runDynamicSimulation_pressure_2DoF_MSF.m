@@ -69,6 +69,7 @@ tic
 [t, X] = ode15s(@(t,X) arm_dynamics_pressure_2DoF_MSF(t,X,params), tspan, X0);
 toc
 
+%%
 % drawing the arm
 tip_pos = zeros(length(t), length(xi), 3);
 l = zeros(1,3);
