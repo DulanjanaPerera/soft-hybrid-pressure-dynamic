@@ -52,7 +52,7 @@ params.kmax = 1e6 * ones(1,3);
 params.lmin = -0.02 * ones(1,3);
 params.lmax = 0.02 * ones(1,3);
 params.g = 9.81;
-params.d = 5e-11*diag([1 1 1]); % original 5e-12
+params.d = 8e-11*diag([1 1 1]); % original 5e-12
 % params.tau = [params.A*3e5; params.A*3e5];
 params.tau = [0.0; 0.0];
 
@@ -64,49 +64,77 @@ dp0 = [0.0; 0.0];
 X0  = [p0; dp0];
 
 % Integrate
-tspan = [0 10];
+tspan = [0 2];
 tic
 [t, X] = ode15s(@(t,X) arm_dynamics_pressure_2DoF_MSF(t,X,params), tspan, X0);
 toc
 
 %%
 % drawing the arm
-tip_pos = zeros(length(t), length(xi), 3);
-l = zeros(1,3);
+% tip_pos = zeros(length(t), length(xi), 3);
+% l = zeros(1,3);
+% 
+% figure(1); clf
+% ax = axes;
+% h_backbone = plot3(NaN,NaN,NaN,'LineWidth',2); hold on
+% h_tip      = plot3(NaN,NaN,NaN,'o','MarkerFaceColor',[.8 .2 .2],'MarkerEdgeColor','none');
+% xlabel('X'); ylabel('Y'); zlabel('Z');
+% rotate3d 'on'; 
+% ht = title(ax, 'Continuum arm backbone (current frame) and tip');
+% grid on; axis equal
+% 
+% for k = 1:length(t)
+%     p = zeros(3,1);
+%     p(2:3) = X(k,1:2)';  % update DOFs from your state
+% 
+%     % fill positions along the backbone for all xi
+%     for j = 1:length(xi)
+%         pos = backbonePos_pressure_xi_2DoF_MSF(p, params.L, params.r, xi(j), params.K, params.A); % [1x3] or [3x1]
+%         tip_pos(k,j,1) = pos(1);
+%         tip_pos(k,j,2) = pos(2);
+%         tip_pos(k,j,3) = pos(3);
+%     end
+% 
+%     % extract this frame's curve
+%     Xs = squeeze(tip_pos(k,:,1));
+%     Ys = squeeze(tip_pos(k,:,2));
+%     Zs = squeeze(tip_pos(k,:,3));
+% 
+%     % update plot
+%     set(h_backbone,'XData',Xs,'YData',Ys,'ZData',Zs);
+%     set(h_tip,'XData',Xs(end),'YData',Ys(end),'ZData',Zs(end));  % tip = xi(end)
+%     xlim([-0.3 0.3]); ylim([-0.3 0.3]); zlim([-0.1 0.3]); 
+%     set(ht, 'String', sprintf('Continuum arm — frame k = %d / %d   t = %.3f s', ...
+%                           k, numel(t), t(k)));
+%     drawnow
+%     pause(0.01);
+% end
 
-figure(1); clf
-ax = axes;
-h_backbone = plot3(NaN,NaN,NaN,'LineWidth',2); hold on
-h_tip      = plot3(NaN,NaN,NaN,'o','MarkerFaceColor',[.8 .2 .2],'MarkerEdgeColor','none');
-xlabel('X'); ylabel('Y'); zlabel('Z');
-rotate3d 'on'; 
-ht = title(ax, 'Continuum arm backbone (current frame) and tip');
-grid on; axis equal
+%% Draw and record cylindrical arm animation
 
-for k = 1:length(t)
-    p = zeros(3,1);
-    p(2:3) = X(k,1:2)';  % update DOFs from your state
+opts = struct();
 
-    % fill positions along the backbone for all xi
-    for j = 1:length(xi)
-        pos = backbonePos_pressure_xi_2DoF_MSF(p, params.L, params.r, xi(j), params.K, params.A); % [1x3] or [3x1]
-        tip_pos(k,j,1) = pos(1);
-        tip_pos(k,j,2) = pos(2);
-        tip_pos(k,j,3) = pos(3);
-    end
+opts.fileName      = 'results/soft_arm_cylinder_animation.mp4';
+opts.saveVideo     = true;
 
-    % extract this frame's curve
-    Xs = squeeze(tip_pos(k,:,1));
-    Ys = squeeze(tip_pos(k,:,2));
-    Zs = squeeze(tip_pos(k,:,3));
+opts.bodyRadius    = 0.015;
+opts.nXi           = 60;
+opts.nCircle       = 24;
+opts.frameStride   = 1;
+opts.fps           = 30;
+opts.pauseTime     = 0.01;
 
-    % update plot
-    set(h_backbone,'XData',Xs,'YData',Ys,'ZData',Zs);
-    set(h_tip,'XData',Xs(end),'YData',Ys(end),'ZData',Zs(end));  % tip = xi(end)
-    xlim([-0.3 0.3]); ylim([-0.3 0.3]); zlim([-0.1 0.3]); 
-    set(ht, 'String', sprintf('Continuum arm — frame k = %d / %d   t = %.3f s', ...
-                          k, numel(t), t(k)));
-    drawnow
-    pause(0.01);
-end
+opts.bodyColor     = [0.20 0.55 0.90];
+opts.edgeColor     = [0 0 0];
+opts.edgeAlpha     = 0.65;
+opts.faceAlpha     = 1.00;
+opts.edgeLineWidth = 0.35;
 
+opts.showCenterline = false;
+
+opts.xlim          = [-0.3 0.3];
+opts.ylim          = [-0.3 0.3];
+opts.zlim          = [-0.1 0.3];
+opts.view          = [45 25];
+
+animateContinuumArmCylinder_pressure_2DoF_MSF(t, X, params, opts);
