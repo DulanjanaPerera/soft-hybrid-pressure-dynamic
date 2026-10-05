@@ -1,6 +1,8 @@
 % Run and record the interpreted three-section pressure-coordinate model.
 % Edit the parameter, initial-state, input, and video blocks below.
 % State order: X = [q;dq], q = [p12;p13;p22;p23;p32;p33] in Pa.
+% In a passive run, q is a pressure-equivalent shape coordinate, not a
+% prediction of measured chamber pressure. inputForce is not a valve signal.
 % Each column of params.L describes one section:
 % [base sensor offset; flexible backbone length; tip sensor offset] (m).
 % Sensor offsets do not add backbone length or mass to this model.
@@ -18,7 +20,7 @@ params.mi = [0.10;0.1;0.10];        % total mass of each section (kg)
 % applied in yaw-pitch-roll order: Rbase = Rz(yaw)*Ry(pitch)*Rx(roll).
 % A 180 degree roll or pitch reverses the backbone's initial direction.
 baseRollDeg = 0;
-basePitchDeg = 0;
+basePitchDeg = 180;
 baseYawDeg = 0;
 params.basePosition = [0;0;0];      % base location in world coordinates (m)
 Rx = [1,0,0;0,cosd(baseRollDeg),-sind(baseRollDeg); ...
@@ -28,7 +30,7 @@ Ry = [cosd(basePitchDeg),0,sind(basePitchDeg);0,1,0; ...
 Rz = [cosd(baseYawDeg),-sind(baseYawDeg),0; ...
     sind(baseYawDeg),cosd(baseYawDeg),0;0,0,1];
 params.baseRotation = Rz*Ry*Rx;
-params.gWorld = [0;0;9.81];         % gravitational acceleration in world frame (m/s^2)
+params.gWorld = [0;0;-9.81];         % gravitational acceleration in world frame (m/s^2)
 params.g = params.baseRotation.'*params.gWorld; % same gravity in base frame
 
 % PMA stiffness: rows are local actuators 1, 2, 3 (N/m).
@@ -54,6 +56,7 @@ X0 = [q0;dq0];
 % A constant 6x1 vector or a function @(time,state) returning 6x1 is
 % accepted. For example: inputForce = @(time,state) [1e-5*sin(2*pi*time);zeros(5,1)];
 inputForce = zeros(6,1);
+inputForce(1,1) = 1e-4;
 
 %% Integration settings
 tFinal = 10;                            % s
