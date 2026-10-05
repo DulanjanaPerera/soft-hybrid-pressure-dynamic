@@ -1,7 +1,8 @@
 function [P,R,bases] = armS_pressure_geometry(q,params,xi)
-% Global backbone points/frames for three sections in pressure coordinates.
+% World-frame backbone points/frames for three pressure-coordinate sections.
 % P is nXi-by-3-by-3; R is 3-by-3-by-nXi-by-3; bases is 3-by-4.
 % Sensor offsets L(1,:) and L(3,:) do not extend the physical backbone.
+% Optional params.baseRotation/basePosition place the base in the world.
 assert(isequal(size(q),[6,1]) && isvector(xi) && ...
     all(isfinite(xi)) && all(xi>=0) && all(xi<=1));
 assert(isequal(size(params.L),[3,3]) && ...
@@ -15,6 +16,18 @@ R = zeros(3,3,nXi,3);
 bases = zeros(3,4);
 Pbase = zeros(3,1);
 Rbase = eye(3);
+if isfield(params,'basePosition')
+    assert(isequal(size(params.basePosition),[3,1]) && ...
+        all(isfinite(params.basePosition)));
+    Pbase = params.basePosition;
+end
+if isfield(params,'baseRotation')
+    assert(isequal(size(params.baseRotation),[3,3]) && ...
+        all(isfinite(params.baseRotation),'all') && ...
+        norm(params.baseRotation.'*params.baseRotation-eye(3),'fro')<1e-10 ...
+        && abs(det(params.baseRotation)-1)<1e-10);
+    Rbase = params.baseRotation;
+end
 for n = 1:3
     p = [0,q(2*n-1:2*n).'];
     Lbody = [0;params.L(2,n);0];

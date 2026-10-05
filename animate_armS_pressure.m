@@ -26,11 +26,13 @@ frames = 1:frameStride:numel(t);
 if frames(end)~=numel(t), frames(end+1) = numel(t); end
 xi = linspace(0,1,nXi);
 colors = [0.18 0.48 0.85;0.13 0.65 0.47;0.92 0.51 0.18];
-fig = figure('Color','w','Visible',visible,'Position',[100 100 900 700]);
+fig = figure(1); % Reuse Figure 1 on every run.
+clf(fig);
+set(fig,'Color','w','Visible',visible,'Position',[100 100 900 700]);
 ax = axes('Parent',fig); hold(ax,'on'); grid(ax,'on');
 axis(ax,'equal'); view(ax,35,22);
 xlabel(ax,'X (m)'); ylabel(ax,'Y (m)'); zlabel(ax,'Z (m)');
-mins = zeros(3,1); maxs = zeros(3,1);
+mins = inf(3,1); maxs = -inf(3,1);
 for k = frames
     Psample = armS_pressure_geometry(X(k,1:6).',params,xi);
     points = reshape(permute(Psample,[2,1,3]),3,[]);
@@ -49,6 +51,11 @@ for n = 1:3
         'EdgeColor','none','FaceLighting','gouraud');
 end
 tip = plot3(ax,0,0,0,'ko','MarkerFaceColor','k','MarkerSize',6);
+if isfield(params,'basePosition'), basePoint = params.basePosition;
+else, basePoint = zeros(3,1);
+end
+plot3(ax,basePoint(1),basePoint(2),basePoint(3),'ks', ...
+    'MarkerFaceColor',[0.25 0.25 0.25],'MarkerSize',7);
 camlight(ax,'headlight');
 if saveVideo
     [folder,~,ext] = fileparts(outputFile);
