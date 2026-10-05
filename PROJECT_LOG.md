@@ -49,3 +49,25 @@ This log records modeling decisions, implementation changes, validation evidence
 The largest `S_,a = F_a + F_aᵀ` scaled error was `4.614e-16`. The quadrature comparison includes mixed terms in `F_q` and `E_q`; it does not substitute products of separately integrated quantities. The 10 kPa pose matches the order of the current single-section simulation's initial pressure.
 
 **Limit:** These tests establish numerical agreement at the four listed poses and supplied section lengths, not a validated operating envelope. The expanded expressions show increasing numerical disagreement at larger bends. Three-section recursive assembly, independent mass and gravity checks, physical force laws, trajectory validation, and MEX generation remain untested.
+
+## 2026-10-05 — Step 3: interpreted three-section recursive core
+
+**Implementation:** Added [armS_pressure_core.m](armS_pressure_core.m), returning `M` (6×6), `C` (6×6), `G` (6×1), and `dM` (6×6×6) for `q=[p12;p13;p22;p23;p32;p33]` (Pa) and `dq` (Pa/s). Each column of `params.L` is one section's `[base sensor offset; flexible section length; tip sensor offset]` in meters; the validation uses three unequal section lengths. Section mass is uniform in normalized material coordinate, `dm_i=m_i dxi`. Only translational kinetic energy is modeled. Each section's mass moments and the tip transform used for propagation receive `Lbody=[0;params.L(2,i);0]`, so sensor offsets affect neither the mass terms nor the physical connection between section backbones. The local pressure exports are used directly; no length-coordinate transformation is applied.
+
+**Dynamics convention:** `params.g` is gravitational acceleration in the model frame. The potential is `V(q)=-Σ_i m_i∫gᵀx_i(q,xi) dxi`, and `G=∂V/∂q`. The intended equation is `M(q) qdd + C(q,dq) dq + G(q) = Q`, with the pressure-coordinate generalized input `Q` still to be derived. `C` is assembled from `dM` with the Christoffel convention used in the handoff. The current local-local mass block treats the polynomial `R` as orthogonal; the approximation is measured below.
+
+**Independent validation:** Added [validate_armS_pressure_core.m](validate_armS_pressure_core.m). The reference composes section transforms directly, estimates global point Jacobians by centered 2 Pa pressure differences, and integrates `JᵀJ` and `-Jᵀg` with 20-node Gauss–Legendre quadrature. It checks `dM` with centered 20 Pa differences of `M`, `Mdot-2C` skew symmetry, mass symmetry and Cholesky positive definiteness, and invariance when only the massless sensor offsets change. At the second pose, it also compares `G` with a finite-difference gradient of the directly integrated potential.
+
+The test parameters were `L(2,:)=[0.278,0.260,0.290]` m, `r=[0.013;0.0125;0.014]` m, `K=[0.0226;0.021;0.024]` (current geometry parameters; units remain to be reviewed), `A=pi*(r/2).^2` m², `m=[0.10;0.08;0.12]` kg, `g=[0;0;-9.81]` m/s², and `dq=[100;-70;50;20;-40;80]` Pa/s. Sensor offsets were nonzero and distinct in the input `L` matrix.
+
+**MATLAB R2025a results:** `matlab -batch "validate_armS_pressure_core"` passed.
+
+| Pressure pose `q` (Pa) | M symmetry | `dM` vs finite difference | `Mdot-2C` skew | M vs direct quadrature | G absolute difference | Max `RᵀR-I` Frobenius norm |
+|---|---:|---:|---:|---:|---:|---:|
+| `[0;0;0;0;0;0]` | `0` | `0` | `0` | `1.928e-8` | `0` | `0` |
+| `[4500;1500;3000;1000;2000;4000]` | `2.991e-17` | `1.509e-6` | `9.763e-17` | `1.998e-8` | `1.136e-12` | `3.388e-10` |
+| `[10000;0;2000;6000;5000;1000]` | `0` | `1.401e-6` | `1.041e-16` | `2.298e-8` | `1.234e-12` | `8.803e-8` |
+
+All three mass matrices passed Cholesky. The gravity-to-potential-gradient scaled error at the second pose was `1.020e-6`. Sensor-offset-only changes left `M`, `C`, `G`, and `dM` identical in all three poses. Ratios in the table use the norms and floors in the validation script; the G column is an absolute Euclidean difference.
+
+**Limits:** This validates the interpreted distributed-mass core at three chosen poses. It does not establish accuracy at larger bends, physical actuation and elastic/damping laws, time integration, animation, or MEX parity. The rotational kinetic energy and any sensor hardware mass remain excluded by model choice; the polynomial rotation's nonorthogonality should be monitored when expanding the operating range.
