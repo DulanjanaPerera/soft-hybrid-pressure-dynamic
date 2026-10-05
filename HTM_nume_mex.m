@@ -1,4 +1,4 @@
-function [T, R, P] = HTM_nume_mex(p, xi, L, r, K)
+function [T, R, P] = HTM_nume_mex(p, xi, L, r, K, A)
 %#codegen
 % Compute the Homogeneous Transforamtion Matrix for a section. The symbolic equation is computed from the 
 % Maple file. The coordinate frame is pressures. Extensions are included
@@ -10,12 +10,13 @@ function [T, R, P] = HTM_nume_mex(p, xi, L, r, K)
 %     on robotics 35, no. 5 (2019): 1097-1108.
 % 
 % Inputs:
-%   p   : pressures of the PMA [3x1] (Pa)
+%   p   : local pressures [0, p2, p3] [1x3] (Pa)
 %   xi  : selection factor of the backbone. xi=0 is the base and xi=1 is
 %         the tip. [constant] {0,1}
-%   L   : Length of the continuum arm [3x1] (m)
+%   L   : [base sensor offset; section length; tip sensor offset] [3x1] (m)
 %   r   : radial offset of the PMA [constant] (m)
 %   K   : Benidng stiffness [constant] (N/rad)
+%   A   : effective PMA area [constant] (m^2)
 % 
 % Outputs:
 %   T   : HTM of the continuum arm at xi [4x4]
@@ -28,6 +29,7 @@ arguments (Input)
     L (3,1) double 
     r (1,1) double 
     K (1,1) double 
+    A (1,1) double {mustBePositive}
 end
 
 arguments (Output)

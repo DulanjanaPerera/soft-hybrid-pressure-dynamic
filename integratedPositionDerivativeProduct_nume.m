@@ -1,4 +1,4 @@
-function [F, F_q] = integratedPositionDerivativeProduct_nume(p, L, r, K)
+function [F, F_q] = integratedPositionDerivativeProduct_nume(p, L, r, K, A)
 %#codegen
 % integration of;
 %
@@ -10,16 +10,19 @@ function [F, F_q] = integratedPositionDerivativeProduct_nume(p, L, r, K)
 %       then p3.
 % 
 % Inputs:
-%   p   : pressure of the PMA [3x1] (m)
-%   L   : Length of the continuum arm [3x1] (m)
+%   p   : local pressures [0, p2, p3] [1x3] (Pa)
+%   L   : [base sensor offset; section length; tip sensor offset] [3x1] (m)
 %   r   : radial offset of the PMA [constant] (m)
 %   K   : Benidng stiffness [constant] (N/rad)
+%   A   : effective PMA area [constant] (m^2)
+% Pass [0; L(2); 0] for the mass-bearing backbone; sensor offsets have no mass.
 
 arguments (Input)
     p (1,3) double
     L (3,1) double 
     r (1,1) double 
     K (1,1) double 
+    A (1,1) double {mustBePositive}
 end
 
 

@@ -1,23 +1,26 @@
-function [E, E_q] = integratedJacobianProduct_nume(p, L, r, K)
+function [E, E_q] = integratedJacobianProduct_nume(p, L, r, K, A)
 %#codegen
 % integration of;
 %
 %   1) (E) P_q^T.P_q product [2x2]
-%   2) (E_q) Jacobian of F (w.r.t. p2 and p3) [2x2x2] (two [2x2]s)
+%   2) (E_q) Jacobian of E (w.r.t. p2 and p3) [2x2x2] (two [2x2]s)
 %       The first derivative of p is in the 3rd dimension. The order is p2
 %       then p3.
 % 
 % Inputs:
-%   p   : pressure of the PMA [3x1] (m)
-%   L   : Length of the continuum arm [3x1] (m)
+%   p   : local pressures [0, p2, p3] [1x3] (Pa)
+%   L   : [base sensor offset; section length; tip sensor offset] [3x1] (m)
 %   r   : radial offset of the PMA [constant] (m)
 %   K   : Benidng stiffness [constant] (N/rad)
+%   A   : effective PMA area [constant] (m^2)
+% Pass [0; L(2); 0] for the mass-bearing backbone; sensor offsets have no mass.
 
 arguments (Input)
     p (1,3) double
     L (3,1) double 
     r (1,1) double 
     K (1,1) double 
+    A (1,1) double {mustBePositive}
 end
 
 

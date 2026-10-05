@@ -1,4 +1,4 @@
-function [PosJ, RotJ, PosJJ, RotJJ] = LocalJacob_nume_mex(p, xi, L, r, K)
+function [PosJ, RotJ, PosJJ, RotJJ] = LocalJacob_nume_mex(p, xi, L, r, K, A)
 %#codegen
 % This function computes the symbolic Local Jacobians of Position vector and the
 % Rotation matrix. However, the rotation matrix is [3x(3x2)]. Because, our
@@ -15,32 +15,33 @@ function [PosJ, RotJ, PosJJ, RotJJ] = LocalJacob_nume_mex(p, xi, L, r, K)
 %     on robotics 35, no. 5 (2019): 1097-1108.
 % 
 % Inputs:
-%   p   : pressure of the PMA [3x1] (m)
+%   p   : local pressures [0, p2, p3] [1x3] (Pa)
 %   xi  : selection factor of the backbone. xi=0 is the base and xi=1 is
 %         the tip. [constant] {0,1}
-%   L   : Length of the continuum arm [3x1] (m)
+%   L   : [base sensor offset; section length; tip sensor offset] [3x1] (m)
 %   r   : radial offset of the PMA [constant] (m)
 %   K   : Benidng stiffness [constant] (N/rad)
+%   A   : effective PMA area [constant] (m^2)
 % 
 % Outputs:
-%   PosJ    : Jacobian matrix of the position with respect to l2 and l3
+%   PosJ    : Jacobian matrix of the position with respect to p2 and p3
 %             [3x2]
-%   RotJ    : Jacobian matrix of the rotation matrix with respect to l2 and
-%             l3 [3x6]
+%   RotJ    : Jacobian matrix of the rotation matrix with respect to p2 and
+%             p3 [3x6]
 %   PosJJ   : Second derivative of the PosJ. Matrix shape is [6x2]. The
 %             matrix arrangment is 
 %               [
-%                dP/dl2dl2, dP/dl2dl3;
-%                dP/dl3dl2, dP/dl3dl3
+%                dP/dp2dp2, dP/dp2dp3;
+%                dP/dp3dp2, dP/dp3dp3
 %               ]
-%             The dP/dl2dl2 = [3x1]
+%             The dP/dp2dp2 = [3x1]
 %   RotJJ   : Second derivative of the RotJ. Matrix shape is [6x6]. The
 %             matrix arrangment is 
 %               [
-%                dR/dl2dl2, dR/dl2dl3; 
-%                dR/dl3dl2, dR/dl3dl3
+%                dR/dp2dp2, dR/dp2dp3;
+%                dR/dp3dp2, dR/dp3dp3
 %               ]
-%             The dR/dl2dl2 = [3x3]
+%             The dR/dp2dp2 = [3x3]
 
 arguments (Input)
     p (1,3) double
@@ -48,6 +49,7 @@ arguments (Input)
     L (3,1) double 
     r (1,1) double 
     K (1,1) double 
+    A (1,1) double {mustBePositive}
 end
 
 arguments (Output)
