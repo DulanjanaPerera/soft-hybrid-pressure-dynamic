@@ -30,3 +30,22 @@ This log records modeling decisions, implementation changes, validation evidence
 **Validation:** Added [validate_pressure_local_interfaces.m](validate_pressure_local_interfaces.m). On MATLAB R2025a, `matlab -batch "validate_pressure_local_interfaces"` passed. The check used `p=[0,2000,1000]` Pa, `L=[0.01;0.278;0.015]` m, `Lbody=[0;0.278;0]` m, `r=0.013` m, `K=0.0226` (the current model parameter; its documented units need review), and `A=pi*(0.013/2)^2` m². It checked output dimensions, finite values, transform output consistency, straight-backbone endpoints and first moment with zero offsets, and sensitivity to `A`.
 
 **Limit:** This establishes callable interfaces and basic geometry only. It does not yet verify analytic pressure derivatives, integral identities, mass properties, or MEX code generation. Those checks are the next step.
+
+## 2026-10-05 — Step 2: local pressure derivatives and section integrals
+
+**Method:** Added [validate_pressure_local_models.m](validate_pressure_local_models.m). At each pose, centered pressure perturbations check the position and rotation Jacobians against [HTM_nume_mex.m](HTM_nume_mex.m) and the Hessians against differences of those Jacobians. A 24-node Gauss–Legendre rule integrates local point position, Jacobian, and Hessian over `xi ∈ [0,1]` and compares the results with the exported `mu`, `S`, `F`, `E` moments and their pressure derivatives. The validation also checks `S_,a = F_a + F_aᵀ`. The numerical reference uses `Lbody=[0;L(2);0]`, since the sensor offsets have no mass; derivative checks use the full `L` to exercise sensor geometry. Centered-difference steps were 2 Pa for first derivatives and 20 Pa for second derivatives.
+
+**Defect and correction:** The expanded transform returned `NaN` in two rotation entries at exactly `p2=p3=0`. Values approaching zero pressure converged to the identity rotation. [HTM_nume_mex.m](HTM_nume_mex.m) now returns the straight-arm limit `R=I`, `P=[0;0;L(1)+xi*L(2)+L(3)]` at that exact configuration, before evaluating the removable `0/0` terms. The symbolic expression used at nonzero pressure was not changed.
+
+**MATLAB R2025a results:** `matlab -batch "validate_pressure_local_models"` passed. The table reports the largest scaled error among the four derivative comparisons and among the nine quadrature comparisons at each pose. The scale is the numerical reference norm with a `1e-12` floor.
+
+| Local pressure `[0,p2,p3]` (Pa) | `L(2)` (m) | `xi` for derivative check | Largest derivative error | Largest quadrature error |
+|---|---:|---:|---:|---:|
+| `[0,0,0]` | 0.278 | 0.35 | `1.428e-7` | `1.643e-15` |
+| `[0,4500,1500]` | 0.260 | 0.67 | `5.237e-7` | `8.745e-10` |
+| `[0,2000,8000]` | 0.290 | 1.00 | `4.529e-6` | `1.403e-7` |
+| `[0,10000,0]` | 0.278 | 0.50 | `2.920e-7` | `2.914e-7` |
+
+The largest `S_,a = F_a + F_aᵀ` scaled error was `4.614e-16`. The quadrature comparison includes mixed terms in `F_q` and `E_q`; it does not substitute products of separately integrated quantities. The 10 kPa pose matches the order of the current single-section simulation's initial pressure.
+
+**Limit:** These tests establish numerical agreement at the four listed poses and supplied section lengths, not a validated operating envelope. The expanded expressions show increasing numerical disagreement at larger bends. Three-section recursive assembly, independent mass and gravity checks, physical force laws, trajectory validation, and MEX generation remain untested.
