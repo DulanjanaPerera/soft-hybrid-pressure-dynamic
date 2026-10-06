@@ -56,7 +56,7 @@ X0 = [q0;dq0];
 % A constant 6x1 vector or a function @(time,state) returning 6x1 is
 % accepted. For example: inputForce = @(time,state) [1e-5*sin(2*pi*time);zeros(5,1)];
 inputForce = zeros(6,1);
-inputForce(1,1) = 1e-4;
+% inputForce(1,1) = 1e-4;
 
 %% Integration settings
 tFinal = 10;                            % s
