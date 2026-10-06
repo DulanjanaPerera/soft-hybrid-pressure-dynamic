@@ -1,9 +1,9 @@
-# Three-section arm: kinematics and dynamics handoff for a Cosserat rod model
+# Three-section arm: pressure- and length-coordinate handoff for a Cosserat rod model
 
 - **Prepared:** 6 October 2026
 - **Repository:** `DulanjanaPerera/soft-hybrid-pressure-dynamic`, branch `codex/recursive-dynamic-modeling`
 - **Source baseline inspected:** commit `722707d` and the working MATLAB files in this directory.
-**Purpose:** Give another implementation chat a traceable description of the present arm model and a staged route to an efficient Cosserat rod dynamic model. This is a technical handoff, not a claim that the current pressure-coordinate simulation is a calibrated pneumatic plant.
+**Purpose:** Give another implementation chat a traceable description of the present pressure model, the separate length-coordinate references, and a staged route to an efficient Cosserat rod dynamic model. This is a technical handoff, not a claim that either model is a calibrated pneumatic plant.
 
 ## 1. Model at a glance
 
@@ -24,7 +24,7 @@
 | `L(1,i),L(3,i)` | m | Sensor offsets; omitted from physical backbone and mass integrals |
 | `r_i` | m | Actuator radial offset from backbone |
 | `A_i` | m² | Effective actuator area in the pressure-to-geometry expressions |
-| `K_i` | code comment says N/rad | Parameter in the generated geometry; **units need resolution**, section 7 |
+| `K_i` | code comment says N/rad | Parameter in the generated geometry; **units need resolution**, section 8 |
 | `m_i`/`params.mi(i)` | kg | Total distributed mass of section `i` |
 | `k(:,i)` | code comment says N/m | Three local PMA stiffness values used by the inherited elastic law |
 | `g`/`params.g` | m/s² | Gravity expressed in the **base frame** for the dynamics core |
@@ -112,13 +112,72 @@ U_i = 1/2 q_iᵀ H_i q_i,       F_elastic,i = H_i q_i.
 
 `k(1,i)` enters the runner's example choice `K_i=(3/20)k(1,i)L_i r_i²`, not this block directly. `D` is an illustrative 6×6 positive semidefinite pressure-coordinate damping matrix. The energy diagnostic [armS_pressure_energy.m](armS_pressure_energy.m) uses `E=T+sum_i U_i+V_g`. For `Q=0`, a consistent passive model satisfies `dE/dt=-qdotᵀD qdot`; for general `Q`, `dE/dt=qdotᵀQ-qdotᵀD qdot` under the stated model. These are model consistency identities, not experimental validation of `H`, `D`, or `Q`.
 
-## 5. Physical actuation and the critical pressure distinction
+## 5. Length-coordinate kinematics and dynamics reference
+
+The separate length-model repository is `DulanjanaPerera/hybrid-soft-arm-dynamics-multisection-pointmass`. Its historical checkout is `C:\Users\dperera\OneDrive - Texas A&M University\Lab\Research\Controlling\Dynamic_jointspace_3section\hybrid-soft-arm-dynamics-main\hybrid-soft-arm-dynamics-main\Matlab` (inspected on branch `Ozi`, commit `86c3800`). Its cleaner worktree is `C:\Users\dperera\OneDrive - Texas A&M University\Lab\Research\Controlling\Dynamic_jointspace_3section\standard-arm-floating-base` (inspected on branch `codex/standard-arm-floating-base`, commit `99f281c`). Also inspect the historical `compare-pointmass-standard` branch for the distributed-versus-point-mass development. Read these as **references**; no files in either length-model checkout were edited for this report.
+
+### Coordinates and geometry
+
+The length chart is `q_l=[ell_12;ell_13;ell_22;ell_23;ell_32;ell_33]` in **meters**, with `X_l=[q_l;qdot_l]` and local input `ell_i=[0,ell_i2,ell_i3]` (1×3). Each `ell_ia` is an actuator length **change**, not the total physical actuator length. The leading zero fixes the local reference actuator; the corresponding third change is constrained by `ell_i1=-(ell_i2+ell_i3)` in the historical description. The section transform `HTM_nume(ell_i,xi,L,r)` and its `LocalJacob_nume` derivatives use one **scalar common section length** `L` and one scalar radial offset `r`. The historical/clean length code has no `L(1)/L(3)` sensor-offset vector; the pressure model's `L(:,i)` must not be passed into it directly.
+
+For nonzero local changes the bend-plane direction has the same algebraic form as the pressure chart after replacing `p2,p3` with `ell_2,ell_3`. The corresponding section-tip bend magnitude is
+
+```text
+beta_l = (2/(sqrt(3)*r))*sqrt(ell_2^2+ell_2*ell_3+ell_3^2).
+```
+
+At `ell=[0,0.00466054388,0.00233027194] m`, `L=0.178 m`, and `r=0.013 m`, this formula and the `HTM_nume` tip-rotation angle both gave `0.547622952 rad` in MATLAB R2025a. This validates that local angle expression at the checked pose; full axis and distributed-shape parity still matter. At the straight shape, avoid an azimuth/curvature-magnitude chart singularity by representing bending with regular components.
+
+The simplified pressure-to-length **shape-chart** relation in section 3 is `q_l=J_lp q_p` with per-section block `J_lp,i=c_i I_2` and `c_i=3A_i r_i²/(2K_i)` when both models use the same section geometry and the parameter units are made consistent. This is useful to compare *geometric coordinates*, not a claim that an actual chamber-pressure signal determines passive shape. In a direct local transform check with `L=0.178 m`, `r=0.013 m`, `K=0.01443936`, three local poses (`[p2,p3]=[2000,1000],[4500,1500],[0,0]` Pa), and four `xi` points (`0,0.25,0.6,1`), the pressure `HTM_nume_mex([0,p2,p3],xi,[0;L;0],r,K,A)` and length `HTM_nume([0,c p2,c p3],xi,L,r)` differed by at most `9.458e-10` in the maximum of position norm and rotation Frobenius norm. This is a sampled **kinematic cross-check**, not physical calibration or a dynamics validation.
+
+With the same backbone, masses, radial geometry, gravity frame, and `J_lp` held constant, candidate **numerical cross-checks** are `M_p≈J_lpᵀ M_l J_lp` and `C_p≈J_lpᵀ C_l J_lp` after evaluating the length model at `(q_l,qdot_l)=(J_lp q_p,J_lp qdot_p)`. The latter assumes both `C` matrices use the same Christoffel construction. For the currently coded gravity conventions, the candidate relation is instead `G_p≈-J_lpᵀG_l`, as explained below. These identities have **not** been validated numerically for the complete three-section cores; they are not an instruction to transform the existing pressure-local derivatives during implementation. The two models' elastic and input laws are different and should not be equated by this kinematic check.
+
+### Distributed-mass dynamic reference
+
+The clean length model's `armS_standard_core.m` uses uniform section mass `dm_i=m_i dxi`, local length-coordinate `HTM_nume`/`LocalJacob_nume` functions, and length-coordinate analytical moments `mu,S,F,E` to form `M_l,C_l,G_l,dM_l` for three sections. As in the pressure model, downstream material-point translational velocity includes upstream orientation motion; material rotational kinetic energy is omitted. The same generic mass integral applies with `J_l=∂x/∂q_l`:
+
+```text
+M_l = sum_i m_i ∫_0^1 J_l,iᵀ J_l,i dxi,
+C_l,ab = 1/2 sum_h [M_l,ab,h+M_l,ah,b-M_l,bh,a] qdot_l,h.
+```
+
+**Gravity sign must be checked before mixing models.** The clean length source assembles `G_l=+sum_i m_i∫J_l,iᵀ g_arm dxi` and its RHS *subtracts* `G_l`. The present pressure core defines `G_p=∂V_g/∂q_p` for `V_g=-sum_i m_i∫g_armᵀx_i dxi`, hence assembles `G_p=-sum_i m_i∫J_p,iᵀg_arm dxi` and also subtracts `G_p` in its RHS. These are opposite definitions when `g_arm` is the same physical acceleration. Do **not** use `G_p=J_lpᵀG_l` without first reconciling this sign and verifying physical falling direction and potential energy. The older length-model project log calls its `g` and `G` usage an inherited convention; retain the implemented equation when reproducing that baseline, but choose one physically explicit gravity convention for the new Cosserat rod.
+
+The length RHS in `armS_standard_dynamics.m` is
+
+```text
+M_l qdd_l + C_l qdot_l + D_l qdot_l + G_l + K_eff(q_l) q_l = tau_l,
+K_eff,aa = K_aa + (Kmax/2)*[2+tanh(mu*(q_l,a-lmax))
+                               -tanh(mu*(q_l,a-lmin))].
+```
+
+Here `K` is a **6×6 length-coordinate restoring-stiffness matrix** and `Kmax,mu,lmin,lmax` describe a smooth boundary penalty. This `K` is **not** the scalar/per-section pressure-to-geometry `K_i` in sections 2–3. The clean runner's example sets `K=2200 I`, `D=600 I`, `lmin=-0.02 m`, `lmax=0.02 m`, `Kmax=1e6`, and `mu=2000`. Its legacy example pressure input uses `tau_l=-(A*pressureBar*1e5)*ones(6,1)` with `pressureBar` in bar. This is a simple inherited length-coordinate force prescription, not a derived three-chamber volume or valve model. The point-mass and hybrid variants keep the same RHS law while changing `M,C,G`.
+
+### Point masses, base orientation, and evidence
+
+The historical `Ozi` branch has a point-mass recursion `armS_core_N3_mex` with each section mass concentrated at a chosen normalized backbone location `cog_xi(i)`. That chosen location is a modeling point, not automatically the actual distributed section center of mass. The clean `armS_hybrid_core.m` adds **separate** physical backbone point masses (`addedMass(i)` at `addedXi(i)`) to the distributed standard core: `M_h=M_distributed+M_added`, and likewise for `C,G,dM`; it uses unit beta. This is relevant if sensor packages or tip hardware have measured mass, but a sensor *offset* alone still carries no mass. Off-axis payloads or rotary inertia require a new derivation.
+
+The clean `armS_stationary_base_entry.m` accepts a proper fixed `R_world_from_arm` and world gravity, computes `g_arm=R_world_from_armᵀ g_world`, and calls the unchanged standard entry. It models a rotated **stationary** base, not translationally or angularly accelerating floating-base dynamics, despite the worktree name. The clean project's `STANDARD_ARM_PROJECT_LOG.md` reports MATLAB R2025a checks at three length poses using independent 16-node point quadrature: maximum relative mass-integral difference `1.112e-12`, maximum relative `dM/dq_l` error `2.070e-10`, and maximum relative `Mdot-2C` skew residual `1.534e-16`. It reports a validated Windows standard MEX and a stationary-base MEX, but those binaries/build artifacts are local to that checkout and do not imply a pressure-model or Cosserat MEX.
+
+| Length-reference file (clean worktree) | Role for the next chat |
+|---|---|
+| `HTM_nume.m`, `LocalJacob_nume.m` | Scalar-`L` local length-change transform, Jacobians, Hessians |
+| `integratedPosition_nume.m`, `integratedPositionProduct_compact.m`, `integratedPositionDerivativeProduct_compact.m`, `integratedJacobianProduct_compact.m` | Distributed-mass local moments and derivatives |
+| `armS_standard_core.m`, `christoffelSymbol.m` | Three-section translational distributed-mass recursion and `C` |
+| `armS_standard_dynamics.m`, `armS_standard_entry.m` | Length-coordinate restoring force, damping, generalized input, RHS |
+| `armS_core_N3_mex.m`, `armS_hybrid_core.m` | Point-mass and distributed-plus-attached-mass alternatives |
+| `armS_stationary_base_entry.m`, `validate_armS_standard.m`, `validate_armS_stationary_base.m` | Fixed-base orientation wrapper and independent checks |
+| `STANDARD_ARM_PROJECT_LOG.md` | Length-model validation parameters, MEX parity, unresolved moving-base scope |
+
+For a Cosserat rod, use the length model as a second **kinematic and distributed-mass benchmark**. Compare physical points, directors, line density, `M`, and gravity in a reconciled sign/frame convention. A new rod with exact rotations, shear, extension, twist, or rotary inertia is expected to differ from the reduced reference; quantify each added physical effect instead of forcing numerical equality.
+
+## 6. Physical actuation and the critical pressure distinction
 
 The unit of `Q` is `J/Pa=m³` because `δW=Qᵀδq`. It is **not** a pressure in Pa, and the runner's `inputForce` is not a regulator command. A vented arm may change shape while measured chamber gauge pressure remains near zero; a sealed chamber may change pressure as its volume changes. The current `q` traces do not predict either measurement.
 
 For a physically based rod, keep mechanical strain/shape and actual chamber gauge pressure `p_ch` separate. A candidate chamber work model is `δW_p = p_chᵀ δV`, giving `Q_shape=(∂V/∂shape)ᵀp_ch`. If the pressure-equivalent chart is retained, `Q_q=(∂V/∂q)ᵀp_ch` only after defining and validating `V(q)`. The actuator volume/force law, chamber geometry, common-mode pressure, constraints, valve flow, and chamber thermodynamics are **not** in this repository's three-section model. With three physical PMAs but two shape coordinates per section, do not invent a 9×9 invertible mechanical pressure mass matrix; allocate physical chamber pressures to the available shape efforts and enforce feasible pressure limits. Avoid counting the same pneumatic work in both an elastic potential and an applied load.
 
-## 6. What has actually been checked
+## 7. What has actually been checked
 
 MATLAB R2025a checks, recorded in [PROJECT_LOG.md](PROJECT_LOG.md), include:
 
@@ -131,13 +190,13 @@ MATLAB R2025a checks, recorded in [PROJECT_LOG.md](PROJECT_LOG.md), include:
 
 These checks cover chosen numerical poses, not a characterized operating envelope. The passive run reached a `13.642 kPa` equivalent coordinate, above the `10 kPa` local validation pose. At the three core poses the largest reported rotation-orthogonality defect was `8.803e-8`; it may grow at larger bends. No experimental shape, force, pressure, or dynamic data have been compared, and no three-section MEX implementation or performance benchmark exists yet.
 
-## 7. Resolve units and constitutive meaning before fitting a Cosserat rod
+## 8. Resolve units and constitutive meaning before fitting a Cosserat rod
 
 **Critical dimensional audit:** The coded bend-angle formula `beta=sqrt(3) A r |p|/K` needs `K` in **N·m** if `A` is m², `r` is m, and `p` is Pa. The numerical tip-rotation check above supports interpreting `beta` as an angle, rather than curvature. The comments in local files instead say `N/rad` (dimensionally N if rad is dimensionless). Moreover, the current example `K=(3/20) k L r²` has units **N·m²** if the documented `k` units really are N/m. At least one definition, coefficient, or unit label therefore needs correction or experimental reinterpretation. The current code can be numerically self-consistent while its parameter units are not. **Do not turn this `K` directly into rod bending rigidity `EI` or fit material properties from it until the original derivation and units are settled.**
 
 The same audit applies to `A` (effective fitting area versus chamber area), `k` (PMA axial stiffness versus distributed stiffness), `r` (centerline-to-actuator path), and the inherited `H` and `D`. The existing model assumes a fixed, inextensible section length for dynamics. Measure or identify actual axial extension, shear, torsion, cross-sectional inertia, hybrid rigid features, and any nonuniform line density before expanding the rod's constitutive state. Sensor offset frames and sensor hardware mass must be specified independently of the backbone length.
 
-## 8. Suggested Cosserat formulation and efficiency path
+## 9. Suggested Cosserat formulation and efficiency path
 
 This section is a **proposal**, not existing code. For section `i`, use physical arc length `s∈[0,L_i]`, centerline `x_i(s,t)`, orientation `R_i(s,t)∈SO(3)`, and body strains
 
@@ -152,15 +211,15 @@ Start by **extracting strains from the existing local geometry** at several pose
 
 For a first **parity** model, retain the same total masses, uniform line density `m_i/L_i`, gravity, two bending degrees per section, omitted rotary inertia, and offset-free physical backbone. Use exact `SO(3)`/`SE(3)` exponentials for rod kinematics and numerical quadrature for kinetic and potential energies. Determine whether the polynomial reference and exact exponential agree within the tested bend range; exact rotations need not match a truncated polynomial at high bend. Include section-to-section pose continuity and a clamped, rotatable base. Exclude sensor offsets from material length and mass, then add sensor measurement poses separately.
 
-After kinematic parity, introduce physically identified rod constitutive laws (for example `n=K_se(v-v0)+D_se vdot`, `m=K_bt(u-u0)+D_bt udot`) and cross-sectional rotary inertia only when corresponding properties are available. A full shear/extension/torsion rod has more modes and cannot be claimed equivalent to the present 6-DOF model by matching six coordinates alone. Add chamber pressure through a derived volume/virtual-work coupling, with pressure dynamics if transient regulator behavior matters. Use the current `H` and `D` only as *numerical comparison baselines* until calibrated.
+After kinematic parity, introduce physically identified rod constitutive laws (for example `n=K_se(v-v0)+D_se vdot`, `m=K_bt(u-u0)+D_bt udot`) and cross-sectional rotary inertia only when corresponding properties are available. A full shear/extension/torsion rod has more modes and cannot be claimed equivalent to either reduced 6-DOF reference by matching six coordinates alone. Add chamber pressure through a derived volume/virtual-work coupling, with pressure dynamics if transient regulator behavior matters. Use the current pressure `H,D` and length `K_eff,D_l` only as *numerical comparison baselines* until calibrated.
 
 For efficiency, start with one PCS element per physical section, then refine to 2–4 elements/section and check convergence of tip pose, mass/energy, and trajectories. Assemble sparse/local element contributions and exploit serial recursion. Cache section quadrature nodes and constant material matrices; generate compiled code only after interpreted parity and profiler evidence. Compare the reduced PCS route with a spatial shooting/implicit integration route if distributed shear, twist, or changing curvature are essential. Renda et al.'s [discrete multisection Cosserat model](https://arxiv.org/abs/1702.03660) and Till et al.'s [real-time spatial Cosserat dynamics](https://journals.sagepub.com/doi/10.1177/0278364919842269) are primary methodological starting points, not sources of this arm's parameter values.
 
-## 9. Concrete handoff tasks and acceptance checks
+## 10. Concrete handoff tasks and acceptance checks
 
 1. **Lock a physical data sheet:** actual `L_i`, mass and distribution, cross-section, actuator paths, chamber volumes, sensor attachment frames, base orientation, pressure range, and whether chambers are vented or sealed. Resolve the `K`/`k` dimensional conflict before material identification.
 2. **Build kinematic parity first:** sample `x_i(s),R_i(s)` from the exported model and extract `u_i(s),v_i(s)`; compare an exact PCS reconstruction to the source at straight and asymmetric poses. Report tip and distributed-point errors and rotation orthogonality.
-3. **Build interpreted reduced dynamics:** use the same physical mass/gravity assumptions to compare rod and current `M`, gravity, free response, and energy. If the new rod includes extra physics, quantify those contributions separately rather than forcing an exact match.
+3. **Build interpreted reduced dynamics:** use the same physical mass/gravity assumptions to compare the rod with both pressure- and length-coordinate references in a common shape chart. Reconcile the opposing coded gravity-sign definitions before comparing `G` or free response. If the new rod includes extra physics, quantify those contributions separately rather than forcing an exact match.
 4. **Derive actuation separately:** use chamber-volume or measured actuator force data to map actual chamber gauge pressure to rod generalized load. Keep valve/pneumatic states distinct from shape coordinates and enforce pressure limits.
 5. **Demonstrate efficiency:** record assembly/integration time, memory, element-count convergence, and MATLAB-versus-compiled numerical parity for representative poses and trajectories. The very large existing Maple moment exports previously caused code-generation stalls in the historical model; avoid compiling all expanded expressions as the first step. See [recursive_dynamics_pressure_coordinate_handoff.md](recursive_dynamics_pressure_coordinate_handoff.md).
 6. **Validate against measurements:** tip/shape trajectories, chamber pressures, applied inputs, and loads. Internal energy and derivative identities are necessary checks, not evidence that the physical plant is modeled accurately.
