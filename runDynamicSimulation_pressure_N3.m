@@ -1,4 +1,4 @@
-% Run and record the interpreted three-section pressure-coordinate model.
+% Run and record the three-section pressure-coordinate model.
 % Edit the parameter, initial-state, input, and video blocks below.
 % State order: X = [q;dq], q = [p12;p13;p22;p23;p32;p33] in Pa.
 % In a passive run, q is a pressure-equivalent shape coordinate, not a
@@ -64,7 +64,8 @@ nSamples = 2001;                         % reported samples, including ends
 relativeTolerance = 1e-8;
 absoluteTolerance = [1e-5*ones(6,1); ... % Pa
                      1e-4*ones(6,1)];   % Pa/s
-benchmarkModel = true;                 % Time the interpreted dynamics RHS
+benchmarkModel = true;                 % Time the selected dynamics RHS
+useMex = true;                         % false selects symbolic MATLAB RHS
 
 %% Animation and video settings
 makeAnimation = true;
@@ -84,15 +85,28 @@ assert(isequal(size(q0),[6,1]) && isequal(size(dq0),[6,1]));
 assert(isscalar(tFinal) && tFinal>0 && nSamples>=2);
 assert(isequal(size(absoluteTolerance),[12,1]) && ...
     all(absoluteTolerance>0));
+assert(all(isfinite(params.D(:))) && ...
+    norm(params.D-params.D.','fro')<1e-12 && ...
+    all(eig(params.D)>=0),'D must be symmetric positive semidefinite.');
+if useMex
+    assert(exist('armS_pressure_mex','file')==3, ...
+        'Build the MEX first by running build_armS_pressure_mex.');
+    modelRhs = @(time,state,force) armS_pressure_mex(time,state, ...
+        params.L,params.r,params.K,params.A,params.mi,params.g, ...
+        params.k,params.D,force);
+    modelLabel = 'MEX';
+else
+    modelRhs = @(time,state,force) ...
+        armS_pressure_dynamics(time,state,params,force);
+    modelLabel = 'MATLAB';
+end
 if isa(inputForce,'function_handle')
     Q0 = inputForce(0,X0);
     assert(isequal(size(Q0),[6,1]) && all(isfinite(Q0)));
-    rhs = @(time,state) armS_pressure_dynamics( ...
-        time,state,params,inputForce(time,state));
+    rhs = @(time,state) modelRhs(time,state,inputForce(time,state));
 else
     assert(isequal(size(inputForce),[6,1]) && all(isfinite(inputForce)));
-    rhs = @(time,state) armS_pressure_dynamics( ...
-        time,state,params,inputForce);
+    rhs = @(time,state) modelRhs(time,state,inputForce);
 end
 sampleTimes = linspace(0,tFinal,nSamples);
 solverOptions = odeset('RelTol',relativeTolerance, ...
@@ -103,12 +117,12 @@ simulationSeconds = toc;
 timing.integrationSeconds = simulationSeconds;
 timing.simulatedSeconds = t(end)-t(1);
 timing.realTimeFactor = timing.simulatedSeconds/simulationSeconds;
-fprintf(['Three-section integration: %d output samples over %.3f s; ' ...
+fprintf(['Three-section %s integration: %d output samples over %.3f s; ' ...
     'wall time %.3f s (%.2fx real time).\n'], ...
-    numel(t),timing.simulatedSeconds,timing.integrationSeconds, ...
+    modelLabel,numel(t),timing.simulatedSeconds,timing.integrationSeconds, ...
     timing.realTimeFactor);
 
-% Benchmark one interpreted dynamics evaluation at three trajectory states.
+% Benchmark one selected dynamics evaluation at three trajectory states.
 % This excludes the ODE solver, inputForce callback, plotting, and video.
 if benchmarkModel
     timing.sampleIndices = unique(round(linspace(1,numel(t),3)));
@@ -122,7 +136,7 @@ if benchmarkModel
             Qsample = inputForce;
         end
         timing.rhsSecondsPerCall(j) = timeit(@() ...
-            armS_pressure_dynamics(t(idx),state,params,Qsample));
+            modelRhs(t(idx),state,Qsample));
     end
     timing.modelSecondsPerCall = median(timing.rhsSecondsPerCall);
     timing.modelFrequencyHz = 1/timing.modelSecondsPerCall;
