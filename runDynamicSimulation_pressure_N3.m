@@ -64,6 +64,7 @@ nSamples = 2001;                         % reported samples, including ends
 relativeTolerance = 1e-8;
 absoluteTolerance = [1e-5*ones(6,1); ... % Pa
                      1e-4*ones(6,1)];   % Pa/s
+benchmarkModel = true;                 % Time the interpreted dynamics RHS
 
 %% Animation and video settings
 makeAnimation = true;
@@ -99,8 +100,36 @@ solverOptions = odeset('RelTol',relativeTolerance, ...
 tic
 [t,X] = ode15s(rhs,sampleTimes,X0,solverOptions);
 simulationSeconds = toc;
-fprintf('Three-section simulation: %d samples over %.3f s; elapsed %.2f s.\n', ...
-    numel(t),t(end),simulationSeconds);
+timing.integrationSeconds = simulationSeconds;
+timing.simulatedSeconds = t(end)-t(1);
+timing.realTimeFactor = timing.simulatedSeconds/simulationSeconds;
+fprintf(['Three-section integration: %d output samples over %.3f s; ' ...
+    'wall time %.3f s (%.2fx real time).\n'], ...
+    numel(t),timing.simulatedSeconds,timing.integrationSeconds, ...
+    timing.realTimeFactor);
+
+% Benchmark one interpreted dynamics evaluation at three trajectory states.
+% This excludes the ODE solver, inputForce callback, plotting, and video.
+if benchmarkModel
+    timing.sampleIndices = unique(round(linspace(1,numel(t),3)));
+    timing.rhsSecondsPerCall = zeros(numel(timing.sampleIndices),1);
+    for j = 1:numel(timing.sampleIndices)
+        idx = timing.sampleIndices(j);
+        state = X(idx,:).';
+        if isa(inputForce,'function_handle')
+            Qsample = inputForce(t(idx),state);
+        else
+            Qsample = inputForce;
+        end
+        timing.rhsSecondsPerCall(j) = timeit(@() ...
+            armS_pressure_dynamics(t(idx),state,params,Qsample));
+    end
+    timing.modelSecondsPerCall = median(timing.rhsSecondsPerCall);
+    timing.modelFrequencyHz = 1/timing.modelSecondsPerCall;
+    fprintf('Model RHS: %.6g s/evaluation (%.2f Hz, median of %d states).\n', ...
+        timing.modelSecondsPerCall,timing.modelFrequencyHz, ...
+        numel(timing.sampleIndices));
+end
 
 if makePressurePlots
     plot_armS_pressure_history(t,X);
