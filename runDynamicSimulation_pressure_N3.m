@@ -20,8 +20,8 @@ params.mi = [0.10;0.1;0.10];        % total mass of each section (kg)
 % applied in yaw-pitch-roll order: Rbase = Rz(yaw)*Ry(pitch)*Rx(roll).
 % A 180 degree roll or pitch reverses the backbone's initial direction.
 baseRollDeg = 0;
-basePitchDeg = 180;
-baseYawDeg = 0;
+basePitchDeg = 90;
+baseYawDeg = 180;
 params.basePosition = [0;0;0];      % base location in world coordinates (m)
 Rx = [1,0,0;0,cosd(baseRollDeg),-sind(baseRollDeg); ...
     0,sind(baseRollDeg),cosd(baseRollDeg)];
@@ -56,7 +56,8 @@ X0 = [q0;dq0];
 % A constant 6x1 vector or a function @(time,state) returning 6x1 is
 % accepted. For example: inputForce = @(time,state) [1e-5*sin(2*pi*time);zeros(5,1)];
 inputForce = zeros(6,1);
-% inputForce(1,1) = 1e-4;
+inputForce(1,1) = -1e-4;
+inputForce(2,1) = -1e-4;
 
 %% Integration settings
 tFinal = 10;                            % s
@@ -71,7 +72,7 @@ useMex = true;                         % false selects symbolic MATLAB RHS
 makeAnimation = true;
 makePressurePlots = true;             % pressure traces in Figure 2
 videoOptions.saveVideo = true;
-videoOptions.fileName = fullfile('results','armS_pressure_run.mp4');
+videoOptions.fileName = fullfile('results','armS_pressure_run_forced_up2.mp4');
 videoOptions.frameStride = 8;
 videoOptions.fps = 25;
 videoOptions.nXi = 31;
