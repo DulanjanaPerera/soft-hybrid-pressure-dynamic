@@ -16,6 +16,8 @@ Status: working plan, October 19, 2026. This plan concerns **one hybrid continuu
 
 **Available recordings (researcher, October 19):** three **commanded pressure** setpoints, tip `X,Y,Z`, and measured `theta,phi`. There is no chamber-pressure measurement. Confirm synchronized timestamps and sample rates before identification. Tip XYZ and `theta,phi` describe the same two-DOF configuration and should not be treated as five independent mechanical degrees of freedom; use angle trajectories as primary fit outputs and XYZ as an independent geometry/prediction check when those measurements are independently obtained.
 
+**Logging handoff:** The researcher is setting up MATLAB/Simulink logging before sharing a trial. Use [ROBOSOFT_2027_DATA_LOG_SPEC.md](ROBOSOFT_2027_DATA_LOG_SPEC.md) for command/pose columns, units, timestamps, metadata, commissioning steps, and the [save_robosoft_trial.m](save_robosoft_trial.m) table export helper. First obtain one short commissioning trial and inspect it before running chirps.
+
 **Naming contract:** `p_cmd ∈ R^3` is the commanded pressure setpoint for the three pressure regulators; `p_ch ∈ R^3` is actual, **unmeasured** chamber pressure; `y=[theta,phi,X,Y,Z]` is the recorded tip pose; `q_eq ∈ R^2` is the existing pressure-equivalent *shape coordinate*; `Q ∈ R^2` is generalized effort. The existing `arm_dynamics_pressure_2DoF_MSF.m` uses `tau=Q`, not `p_cmd` or `p_ch`. The zero-sum relation used in the shape chart is not a physical constraint on three nonnegative PMA commands.
 
 **Model bridge to establish:**
@@ -59,7 +61,7 @@ Fit a parsimonious **effective command-to-effort** map, or a command-to-shape mo
 | Date (Chicago time) | Deliverable and decision |
 | --- | --- |
 | Mon Oct 19 | Freeze paper question, coordinate/input notation, available experimental channels, six-page outline, and figure list. Confirm command and pose can be timestamped together. |
-| Tue Oct 20 | Make command/pose logging reliable; record pose/clock calibration and basic command-to-pose response. Draft introduction, hardware, and model sections with placeholder-free methods. |
+| Tue Oct 20 | Make command/pose logging reliable using the data-log specification; inspect one commissioning trial, pose/clock calibration, and basic command-to-pose response. Draft introduction, hardware, and model sections with placeholder-free methods. |
 | Wed Oct 21 | Complete identification trials in two bending directions plus static holds; archive raw data. **Gate 1:** if synchronized command and pose data are not usable, narrow the claim immediately. |
 | Thu Oct 22 | Fit parameters, check residuals and parameter correlation, freeze training data and parameter set. Draft identification section. |
 | Fri Oct 23 | Run held-out dynamic validation and baseline comparisons; generate main validation figure/table. **Gate 2:** if prediction does not beat simple baselines, revise the model or paper claim before control work. |
@@ -71,7 +73,7 @@ Fit a parsimonious **effective command-to-effort** map, or a command-to-shape mo
 
 - **Researcher/hardware team:** Physical excitation and safety limits, tip-pose calibration, synchronized command/pose recordings, controller deployment, and experimental sign-off.
 - **Codex/code and writing support:** Audit the single-section equations and units; implement reproducible import, identification, simulation, comparison, and plotting scripts once the data format is known; draft and revise the paper from verified results; maintain `PROJECT_LOG.md` with decisions and measured evidence.
-- **Confirmed:** Only commanded pressure, tip XYZ, and `theta,phi` can be recorded; chamber-pressure traces are unavailable. **Still to confirm:** Logging rate/timestamp synchronization, command units and limits, pose measurement method, experiment time, and who can deploy the physical controller. These determine whether the control result is achievable by October 24.
+- **Confirmed:** Only commanded pressure, tip XYZ, and `theta,phi` can be recorded; chamber-pressure traces are unavailable. Acquisition is in MATLAB or Simulink. **Still to confirm:** Logging rate/timestamp synchronization, command units and limits, pose measurement method, experiment time, and who can deploy the physical controller. These determine whether the control result is achievable by October 24.
 
 ## Paper integrity gates
 
