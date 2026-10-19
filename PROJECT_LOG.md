@@ -251,3 +251,7 @@ Used the user-provided `pressured-based_dynamic_model_and_control_for_soft_robot
 ## 2026-10-19 — Paper repository main branch for Overleaf
 
 The researcher clarified that the Overleaf integration reads `main` of the `pressure-control-paper` repository. After fetching and confirming `main` was the direct parent of the draft commit, fast-forwarded paper `main` from `c4fbe20` to `48f902c` and pushed `origin/main`. The local Paper checkout now remains on `main`; future manuscript edits should be made and pushed there so Overleaf receives them. The original `codex/robosoft-2027-single-module-draft` branch remains as a historical pointer at the same commit. No manuscript content changed in this merge step.
+
+## 2026-10-19 — Paper repository template cleanup for Overleaf
+
+On `pressure-control-paper/main`, removed `IEEEtran_HOWTO.pdf`, `conference_101719.tex`, and `conference_101719.pdf` as requested. Renamed the preliminary manuscript to `main.tex` and its compiled preview to `main.pdf`; retained `IEEEtran.cls` as the required class file and left the unused `fig1.png` untouched. The built-in LaTeX compiler again failed to initialize on this host, so MiKTeX `pdflatex` compiled `main.tex` in two passes to a four-page PDF with resolved citations and references; only a nonblocking underfull bibliography line warning remained. Committed the cleanup as `a772e2a` and pushed `origin/main` for Overleaf. The manuscript content itself did not change.
